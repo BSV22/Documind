@@ -143,7 +143,7 @@ export default function Sidebar({ isOpen = true, activeChatId, setActiveChatId }
 
   return (
     <aside
-      className={`flex h-full flex-none flex-col overflow-hidden rounded-[32px] border border-slate-700/70 bg-slate-900/80 backdrop-blur-xl shadow-[0_30px_80px_rgba(15,23,42,0.5)] transition-all duration-300 ease-out ${
+      className={`flex h-full flex-none flex-col overflow-hidden rounded-2xl border border-[#30363d] bg-[#0d1117] shadow-xl shadow-black/20 transition-all duration-300 ease-out ${
         isOpen ? "scale-100 opacity-100" : "pointer-events-none scale-95 opacity-0"
       }`}
       style={{
@@ -152,15 +152,15 @@ export default function Sidebar({ isOpen = true, activeChatId, setActiveChatId }
         padding: isOpen ? undefined : "0px",
       }}
     >
-      <div className="mb-4 border-b border-slate-800/90 bg-gradient-to-br from-slate-950 via-slate-900 to-slate-900/90 px-4 py-4">
+      <div className="mb-4 border-b border-[#30363d] bg-[#161b22] px-4 py-4">
         <div className="flex items-center justify-between gap-3">
           <div>
-            <p className="text-[10px] font-semibold uppercase tracking-[0.28em] text-cyan-300">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#8b949e]">
               Workspace
             </p>
             <h2 className="mt-2 text-xl font-semibold text-white">Documind Space</h2>
           </div>
-          <span className="inline-flex h-10 w-10 items-center justify-center rounded-2xl bg-gradient-to-br from-cyan-400 to-blue-500 text-lg font-black text-slate-950 shadow-lg shadow-cyan-500/25">
+          <span className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-[#2f81f7] text-lg font-bold text-white shadow-md shadow-blue-950/40">
             D
           </span>
         </div>
@@ -172,8 +172,8 @@ export default function Sidebar({ isOpen = true, activeChatId, setActiveChatId }
               onClick={() => setActivePanel(item.id)}
               className={`rounded-2xl px-2 py-2 text-center text-[10px] font-semibold uppercase tracking-[0.18em] transition-all duration-200 ${
                 activePanel === item.id
-                  ? "bg-gradient-to-r from-cyan-400 to-blue-500 text-slate-950 shadow-lg shadow-cyan-500/30"
-                  : "bg-slate-800/80 text-slate-300 hover:bg-slate-700"
+                  ? "bg-[#1f6feb] text-white shadow-md shadow-blue-950/40"
+                  : "border border-transparent bg-[#21262d] text-[#8b949e] hover:border-[#30363d] hover:bg-[#30363d] hover:text-[#e6edf3]"
               }`}
             >
               {item.label}
@@ -184,7 +184,7 @@ export default function Sidebar({ isOpen = true, activeChatId, setActiveChatId }
 
       <div className="flex-1 overflow-y-auto px-3 py-3">
         {activePanel === "history" && (
-          <div className="space-y-4 rounded-[28px] border border-slate-800 bg-slate-950/30 p-3">
+          <div className="space-y-4 rounded-xl border border-[#30363d] bg-[#161b22]/55 p-3">
             <div className="mb-1 flex items-center justify-between gap-2">
               <div>
                 <h3 className="text-base font-semibold text-white">Recent Chats</h3>
@@ -192,14 +192,14 @@ export default function Sidebar({ isOpen = true, activeChatId, setActiveChatId }
               </div>
               <button
                 onClick={handleCreateChat}
-                className="rounded-xl bg-cyan-500 px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.14em] text-slate-950 transition hover:bg-cyan-400 cursor-pointer"
+                className="rounded-lg border border-[#3b82f6] bg-[#1f6feb] px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.1em] text-white transition hover:bg-[#388bfd] cursor-pointer"
               >
                 + New
               </button>
             </div>
 
             {loadingChats ? (
-              <p className="py-4 text-center text-sm text-cyan-300">Loading chats...</p>
+              <p className="py-4 text-center text-sm text-[#58a6ff]">Loading chats...</p>
             ) : chats.length === 0 ? (
               <div className="py-8 text-center text-sm text-slate-500">
                 No chats found. Start a new conversation.
@@ -212,8 +212,8 @@ export default function Sidebar({ isOpen = true, activeChatId, setActiveChatId }
                     onClick={() => setActiveChatId(item.id)}
                     className={`group flex cursor-pointer items-center justify-between gap-3 rounded-2xl border p-3 transition-all duration-200 ${
                       activeChatId === item.id
-                        ? "border-cyan-500/60 bg-slate-800 text-white shadow-[0_10px_30px_rgba(34,211,238,0.12)]"
-                        : "border-slate-800 bg-slate-900/60 text-slate-300 hover:border-slate-700 hover:bg-slate-800/80"
+                        ? "border-[#2f81f7]/70 bg-[#161b22] text-[#e6edf3] shadow-sm shadow-blue-950/30"
+                        : "border-[#30363d] bg-[#0d1117] text-[#c9d1d9] hover:border-[#8b949e] hover:bg-[#161b22]"
                     }`}
                   >
                     <div className="min-w-0 flex-1">
@@ -235,16 +235,16 @@ export default function Sidebar({ isOpen = true, activeChatId, setActiveChatId }
         )}
 
         {activePanel === "documents" && (
-          <div className="space-y-4 rounded-[28px] border border-slate-800 bg-slate-950/30 p-3">
+          <div className="space-y-4 rounded-xl border border-[#30363d] bg-[#161b22]/55 p-3">
             <div>
               <h3 className="text-base font-semibold text-white">Knowledge Source</h3>
               <p className="text-[11px] text-slate-400">Upload PDFs and index them into your private vector database.</p>
             </div>
 
-            <div className="rounded-3xl border border-dashed border-cyan-500/30 bg-slate-900/80 p-4 text-center">
+            <div className="rounded-xl border border-dashed border-[#30363d] bg-[#0d1117] p-4 text-center transition hover:border-[#2f81f7]/70 hover:bg-[#161b22]">
               <label className="block cursor-pointer">
                 <span className="mb-2 block text-2xl">📄</span>
-                <span className="block text-xs font-semibold uppercase tracking-[0.18em] text-cyan-300">
+                <span className="block text-xs font-semibold uppercase tracking-[0.1em] text-[#58a6ff]">
                   {uploading ? "Indexing file..." : "Upload PDF"}
                 </span>
                 <span className="mt-1 block text-[10px] text-slate-500">Max size 10MB</span>
@@ -257,7 +257,7 @@ export default function Sidebar({ isOpen = true, activeChatId, setActiveChatId }
             <div className="space-y-2">
               <h4 className="text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-400">Indexed PDFs</h4>
               {loadingDocs ? (
-                <p className="py-2 text-center text-xs text-cyan-300">Loading documents...</p>
+                <p className="py-2 text-center text-xs text-[#58a6ff]">Loading documents...</p>
               ) : documents.length === 0 ? (
                 <div className="py-4 text-center text-xs text-slate-500">
                   No custom documents uploaded. The default knowledge PDF is active.
@@ -265,7 +265,7 @@ export default function Sidebar({ isOpen = true, activeChatId, setActiveChatId }
               ) : (
                 <div className="space-y-2">
                   {documents.map((doc) => (
-                    <div key={doc.id} className="flex items-center justify-between gap-3 rounded-2xl border border-slate-800 bg-slate-900/70 p-2.5">
+                    <div key={doc.id} className="flex items-center justify-between gap-3 rounded-xl border border-[#30363d] bg-[#0d1117] p-2.5">
                       <div className="min-w-0 flex-1">
                         <p className="truncate text-xs font-semibold text-white" title={doc.filename}>{doc.filename}</p>
                         <p className="mt-1 text-[10px] text-slate-500">{formatDate(doc.upload_time)}</p>
@@ -286,9 +286,9 @@ export default function Sidebar({ isOpen = true, activeChatId, setActiveChatId }
         )}
 
         {activePanel === "profile" && (
-          <div className="space-y-4 rounded-[28px] border border-slate-800 bg-slate-950/30 p-3">
+          <div className="space-y-4 rounded-xl border border-[#30363d] bg-[#161b22]/55 p-3">
             <div className="flex items-center gap-3">
-              <div className="flex h-14 w-14 items-center justify-center rounded-[20px] bg-gradient-to-br from-cyan-400 to-blue-500 text-xl font-bold text-slate-950">
+              <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-[#2f81f7] text-xl font-bold text-white">
                 {(auth.user?.name || "U")[0].toUpperCase()}
               </div>
               <div>
@@ -297,14 +297,14 @@ export default function Sidebar({ isOpen = true, activeChatId, setActiveChatId }
               </div>
             </div>
 
-            <div className="space-y-2 rounded-3xl border border-slate-800 bg-slate-900/70 p-3">
+            <div className="space-y-2 rounded-xl border border-[#30363d] bg-[#0d1117] p-3">
               <div className="flex items-center justify-between gap-3 text-sm text-slate-300">
                 <span>Email</span>
                 <span className="max-w-[10rem] truncate text-xs text-slate-400">{auth.user?.email || "N/A"}</span>
               </div>
               <div className="flex items-center justify-between gap-3 text-sm text-slate-300">
                 <span>Account Type</span>
-                <span className="rounded-full bg-slate-800 px-2.5 py-1 text-[10px] uppercase tracking-[0.16em] text-cyan-300">Standard</span>
+                <span className="rounded-full border border-[#30363d] bg-[#21262d] px-2.5 py-1 text-[10px] uppercase tracking-[0.1em] text-[#8b949e]">Standard</span>
               </div>
             </div>
 
@@ -318,19 +318,19 @@ export default function Sidebar({ isOpen = true, activeChatId, setActiveChatId }
         )}
 
         {activePanel === "settings" && (
-          <div className="space-y-4 rounded-[28px] border border-slate-800 bg-slate-950/30 p-3">
+          <div className="space-y-4 rounded-xl border border-[#30363d] bg-[#161b22]/55 p-3">
             <div>
               <h3 className="text-base font-semibold text-white">Preferences</h3>
               <p className="text-sm text-slate-400">Adjust workspace actions.</p>
             </div>
-            <div className="space-y-2 rounded-3xl border border-slate-800 bg-slate-900/70 p-3">
+            <div className="space-y-2 rounded-xl border border-[#30363d] bg-[#0d1117] p-3">
               <div className="flex items-center justify-between gap-3 text-sm text-slate-300">
                 <span>Dark mode</span>
-                <span className="rounded-full bg-slate-800 px-3 py-1 text-[10px] uppercase tracking-[0.18em] text-slate-200">Enabled</span>
+                <span className="rounded-full border border-[#30363d] bg-[#21262d] px-3 py-1 text-[10px] uppercase tracking-[0.1em] text-[#8b949e]">Enabled</span>
               </div>
               <div className="flex items-center justify-between gap-3 text-sm text-slate-300">
                 <span>Notifications</span>
-                <span className="rounded-full bg-slate-800 px-3 py-1 text-[10px] uppercase tracking-[0.18em] text-slate-200">On</span>
+                <span className="rounded-full border border-[#30363d] bg-[#21262d] px-3 py-1 text-[10px] uppercase tracking-[0.1em] text-[#8b949e]">On</span>
               </div>
             </div>
           </div>

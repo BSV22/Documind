@@ -249,8 +249,8 @@ export default function Chat({ activeChatId }) {
 
     if (!activeChatId) {
         return (
-            <div className="flex h-full w-full flex-col items-center justify-center overflow-hidden rounded-[30px] border border-slate-700/70 bg-slate-900/80 p-8 text-center shadow-[0_30px_80px_rgba(15,23,42,0.5)] backdrop-blur-xl">
-                <div className="mb-4 flex h-20 w-20 items-center justify-center rounded-[28px] bg-gradient-to-br from-cyan-400 to-blue-500 text-4xl shadow-lg shadow-cyan-500/20">💬</div>
+            <div className="flex h-full w-full flex-col items-center justify-center overflow-hidden rounded-2xl border border-[#30363d] bg-[#0d1117] p-8 text-center shadow-xl shadow-black/20">
+                <div className="mb-4 flex h-20 w-20 items-center justify-center rounded-2xl border border-[#30363d] bg-[#161b22] text-4xl text-[#58a6ff]">💬</div>
                 <h3 className="mb-2 text-xl font-semibold text-white">Documind RAG Assistant</h3>
                 <p className="max-w-md text-sm leading-6 text-slate-400">
                     Select a chat session from the sidebar history or create a new session to begin asking questions about your indexed documents.
@@ -260,10 +260,10 @@ export default function Chat({ activeChatId }) {
     }
 
     return (
-        <div className="flex h-full w-full flex-col overflow-hidden rounded-[30px] border border-slate-700/70 bg-slate-900/80 shadow-[0_30px_80px_rgba(15,23,42,0.5)] backdrop-blur-xl">
-            <div className="flex items-center justify-between border-b border-slate-800 bg-gradient-to-r from-slate-950 via-slate-900 to-slate-900 px-4 py-3 text-white">
+        <div className="flex h-full w-full flex-col overflow-hidden rounded-2xl border border-[#30363d] bg-[#0d1117] shadow-xl shadow-black/20">
+            <div className="flex items-center justify-between border-b border-[#30363d] bg-[#161b22] px-4 py-3 text-white">
                 <div>
-                    <p className="text-[10px] uppercase tracking-[0.24em] text-cyan-300">Conversation</p>
+                    <p className="text-[10px] uppercase tracking-[0.16em] text-[#8b949e]">Conversation</p>
                     <h2 className="mt-1 text-base font-semibold">Documind Chatbot</h2>
                 </div>
                 <span className="inline-flex items-center gap-2 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.18em] text-emerald-300">
@@ -286,7 +286,7 @@ export default function Chat({ activeChatId }) {
 
             <div className="flex-1 space-y-3 overflow-y-auto px-4 py-4">
                 {loadingMessages ? (
-                    <div className="py-8 text-center text-sm text-cyan-300">Loading history...</div>
+                    <div className="py-8 text-center text-sm text-[#58a6ff]">Loading history...</div>
                 ) : messages.length === 0 ? (
                     <div className="py-8 text-center text-sm text-slate-500">No messages yet. Ask a question to begin.</div>
                 ) : (
@@ -295,10 +295,10 @@ export default function Chat({ activeChatId }) {
                             <div
                                 className={`max-w-[78%] whitespace-pre-wrap rounded-[22px] px-4 py-3 text-sm leading-7 shadow-sm ${
                                     m.from === "user"
-                                        ? "bg-gradient-to-r from-cyan-500 to-blue-600 text-white rounded-br-md"
+                                        ? "bg-[#1f6feb] text-white rounded-br-md"
                                         : m.text.startsWith("⚠️")
                                             ? "bg-red-950/50 text-red-100 border border-red-500/20 rounded-bl-md"
-                                            : "border border-slate-700/60 bg-slate-800/80 text-slate-100 rounded-bl-md"
+                                            : "border border-[#30363d] bg-[#161b22] text-[#e6edf3] rounded-bl-md"
                                 }`}
                             >
                                 {m.text || <span className="text-xs italic text-slate-400">Streaming...</span>}
@@ -309,11 +309,11 @@ export default function Chat({ activeChatId }) {
 
                 {loading && (
                     <div className="flex justify-start">
-                        <div className="flex max-w-[75%] items-center gap-2 rounded-[22px] rounded-bl-md border border-slate-700/60 bg-slate-800/80 px-4 py-3 text-sm text-slate-200">
-                            <span className="text-xs uppercase tracking-[0.16em] text-cyan-300">Thinking</span>
-                            <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-cyan-400" style={{ animationDelay: '0ms' }}></span>
-                            <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-cyan-400" style={{ animationDelay: '150ms' }}></span>
-                            <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-cyan-400" style={{ animationDelay: '300ms' }}></span>
+                        <div className="flex max-w-[75%] items-center gap-2 rounded-xl rounded-bl-md border border-[#30363d] bg-[#161b22] px-4 py-3 text-sm text-[#e6edf3]">
+                            <span className="text-xs uppercase tracking-[0.1em] text-[#58a6ff]">Thinking</span>
+                            <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-[#58a6ff]" style={{ animationDelay: '0ms' }}></span>
+                            <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-[#58a6ff]" style={{ animationDelay: '150ms' }}></span>
+                            <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-[#58a6ff]" style={{ animationDelay: '300ms' }}></span>
                         </div>
                     </div>
                 )}
@@ -321,8 +321,8 @@ export default function Chat({ activeChatId }) {
                 <div ref={messagesEndRef} />
             </div>
 
-            <div className="border-t border-slate-800 bg-slate-950/60 p-3">
-                <div className="flex items-end gap-3 rounded-[24px] border border-slate-700/80 bg-slate-900/90 px-3 py-2 shadow-inner shadow-slate-950/30">
+            <div className="border-t border-[#30363d] bg-[#161b22] p-3">
+                <div className="flex items-end gap-3 rounded-xl border border-[#30363d] bg-[#0d1117] px-3 py-2 transition focus-within:border-[#2f81f7] focus-within:ring-2 focus-within:ring-[#2f81f7]/20">
                     <textarea
                         ref={textareaRef}
                         value={input}
@@ -336,7 +336,7 @@ export default function Chat({ activeChatId }) {
                     <button
                         onClick={send}
                         disabled={loading || !input.trim()}
-                        className="rounded-2xl bg-gradient-to-r from-cyan-400 to-blue-600 px-4 py-2.5 text-sm font-semibold text-slate-950 shadow-lg shadow-cyan-500/20 transition hover:brightness-110 disabled:cursor-not-allowed disabled:from-slate-700 disabled:to-slate-700 disabled:text-slate-400 disabled:shadow-none cursor-pointer"
+                        className="rounded-lg border border-[#3b82f6] bg-[#1f6feb] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[#388bfd] disabled:cursor-not-allowed disabled:border-[#30363d] disabled:bg-[#21262d] disabled:text-[#8b949e] cursor-pointer"
                     >
                         Send
                     </button>

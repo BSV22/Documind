@@ -19,9 +19,9 @@ export default function Home() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-950 text-white flex items-center justify-center font-sans">
-        <div className="flex flex-col items-center gap-4 rounded-full border border-cyan-500/30 bg-slate-900/70 px-8 py-6 shadow-[0_20px_50px_rgba(8,145,178,0.18)] backdrop-blur-sm">
-          <div className="animate-spin rounded-full h-12 w-12 border-2 border-cyan-500/30 border-t-cyan-400 border-r-sky-400"></div>
+      <div className="min-h-screen bg-[#0d1117] text-white flex items-center justify-center font-sans">
+        <div className="flex flex-col items-center gap-4 rounded-2xl border border-[#30363d] bg-[#161b22] px-8 py-6 shadow-xl shadow-black/20">
+          <div className="animate-spin rounded-full h-12 w-12 border-2 border-[#30363d] border-t-[#2f81f7] border-r-[#2f81f7]"></div>
           <p className="text-sm tracking-[0.32em] text-slate-300">LOADING DOCUMIND</p>
         </div>
       </div>
@@ -33,7 +33,7 @@ export default function Home() {
   }
 
   return (
-    <div className="min-h-screen bg-[radial-gradient(circle_at_top,_rgba(34,211,238,0.14),transparent_30%),radial-gradient(circle_at_bottom_right,_rgba(59,130,246,0.14),transparent_26%),#020817] text-slate-100">
+    <div className="min-h-screen bg-[#0d1117] text-[#e6edf3]">
       <Navbar onToggleSidebar={() => setShowSidebar((open) => !open)} sidebarOpen={showSidebar} />
 
       <main className="px-3 pb-8 pt-24 sm:px-4 lg:px-6">

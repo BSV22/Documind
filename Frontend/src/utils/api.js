@@ -118,9 +118,9 @@ export const apiCall = async (endpoint, options = {}) => {
       if (response.status === 401) {
         const errorData = await response.json().catch(() => ({}));
         const error = new APIError(
-          "Unauthorized - please log in again",
+          errorData.message || errorData.detail || "Unauthorized - please log in again",
           401,
-          "AUTH_ERROR",
+          errorData.error || "AUTH_ERROR",
           null
         );
         throw error;
@@ -317,7 +317,7 @@ export const getErrorMessage = (error) => {
     }
 
     if (error.isAuthError()) {
-      return "Your session has expired. Please log in again.";
+      return error.message || "Your session has expired. Please log in again.";
     }
 
     if (error.isServerError()) {
