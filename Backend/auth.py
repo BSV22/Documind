@@ -415,22 +415,27 @@ def forgot_password(req: ForgotPasswordRequest):
                         (otp_code, otp_expires_at, user["id"])
                     )
                     conn.commit()
-                    logger.info(f"Password reset code sent for email: {req.email}")
+                    logger.info(f"Password reset code generated for email: {req.email}")
         except psycopg2.Error as e:
             log_error(e, "forgot_password database")
             raise handle_database_error(e)
         
         # Send verification email
         try:
-            send_otp_email(req.email, otp_code, email_type="password_reset")
+            email_sent = send_otp_email(
+                req.email, otp_code, email_type="password_reset"
+            )
         except Exception as e:
             log_error(e, "forgot_password email sending")
+            raise ExternalServiceError("Email", "Failed to send password reset code")
+
+        if not email_sent:
             logger.warning(f"Failed to send password reset email to {req.email}")
-            # Don't fail the API call if email fails
+            raise ExternalServiceError("Email", "Failed to send password reset code")
         
         return {"status": "success", "message": "Password reset code sent successfully"}
     
-    except (ValidationError, ResourceNotFoundError):
+    except (ValidationError, ResourceNotFoundError, ExternalServiceError):
         raise
     except Exception as e:
         log_error(e, "forgot_password")
