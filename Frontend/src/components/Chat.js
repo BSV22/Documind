@@ -10,11 +10,10 @@ export default function Chat({ activeChatId }) {
     const [loadingMessages, setLoadingMessages] = useState(false);
     const [error, setError] = useState(null);
     const [errorDetails, setErrorDetails] = useState(null);
-    
+
     const messagesEndRef = useRef(null);
     const textareaRef = useRef(null);
 
-    // Fetch Messages when activeChatId changes
     useEffect(() => {
         if (!activeChatId) {
             const timer = setTimeout(() => {
@@ -33,7 +32,7 @@ export default function Chat({ activeChatId }) {
                     data.map(m => ({
                         id: m.id,
                         from: m.from_user ? "user" : "bot",
-                        text: m.text
+                        text: m.text,
                     }))
                 );
             } catch (err) {
@@ -49,14 +48,10 @@ export default function Chat({ activeChatId }) {
         fetchMessages();
     }, [activeChatId]);
 
-    // Scroll to bottom
     useEffect(() => {
-        messagesEndRef.current?.scrollIntoView({
-            behavior: "smooth",
-        });
+        messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
     }, [messages, loading]);
 
-    // Adjust textarea height automatically
     useEffect(() => {
         const textarea = textareaRef.current;
         if (!textarea) return;
@@ -100,21 +95,20 @@ export default function Chat({ activeChatId }) {
             }
         });
 
-        // Create a unique temporary ID for the bot's incoming message
         const botMsgId = String(Date.now() + 1);
 
         try {
             const response = await fetch("/api/chat", {
                 method: "POST",
                 headers: {
-                    "Content-Type": "application/json"
+                    "Content-Type": "application/json",
                 },
                 body: JSON.stringify({
                     chat_id: activeChatId,
-                    message: userMsgText
+                    message: userMsgText,
                 }),
                 credentials: "same-origin",
-                timeout: 60000 // 60 second timeout for streaming
+                timeout: 60000,
             });
 
             if (!response.ok) {
@@ -122,7 +116,6 @@ export default function Chat({ activeChatId }) {
                 throw new Error(errData.detail || errData.message || "Server error occurred");
             }
 
-            // Append bot message placeholder
             setMessages((prev) => [
                 ...prev,
                 {
@@ -132,7 +125,6 @@ export default function Chat({ activeChatId }) {
                 },
             ]);
 
-            // Turn off initial loading state to hide thinking indicator as we stream
             setLoading(false);
 
             const reader = response.body.getReader();
@@ -192,7 +184,6 @@ export default function Chat({ activeChatId }) {
                                     break;
                                 }
                             } catch (parseErr) {
-                                // Suppress parsing errors for partial segments
                                 console.debug("Parse error for chunk:", parseErr);
                             }
                         }
@@ -220,30 +211,29 @@ export default function Chat({ activeChatId }) {
             }
         } catch (err) {
             console.error("Chat error:", err);
-            
+
             const errorMsg = getErrorMessage(err);
             setLoading(false);
             setError("Failed to send message");
             setErrorDetails(errorMsg);
-            
+
             setMessages((prev) => {
                 const exists = prev.some(m => m.id === botMsgId);
                 if (exists) {
-                    return prev.map(msg => 
-                        msg.id === botMsgId 
+                    return prev.map(msg =>
+                        msg.id === botMsgId
                             ? { ...msg, text: `⚠️ Error: ${errorMsg}` }
                             : msg
                     );
-                } else {
-                    return [
-                        ...prev,
-                        {
-                            id: botMsgId,
-                            from: "bot",
-                            text: `⚠️ Error: ${errorMsg}`,
-                        }
-                    ];
                 }
+                return [
+                    ...prev,
+                    {
+                        id: botMsgId,
+                        from: "bot",
+                        text: `⚠️ Error: ${errorMsg}`,
+                    },
+                ];
             });
         } finally {
             setLoading(false);
@@ -259,10 +249,10 @@ export default function Chat({ activeChatId }) {
 
     if (!activeChatId) {
         return (
-            <div className="flex flex-col h-full w-full rounded-2xl overflow-hidden shadow-xl border border-gray-700 bg-gray-800 justify-center items-center p-8 text-center text-gray-400">
-                <div className="text-5xl mb-4">💬</div>
-                <h3 className="text-lg font-bold text-white mb-2">Documind RAG Assistant</h3>
-                <p className="text-sm max-w-sm">
+            <div className="flex h-full w-full flex-col items-center justify-center overflow-hidden rounded-[30px] border border-slate-700/70 bg-slate-900/80 p-8 text-center shadow-[0_30px_80px_rgba(15,23,42,0.5)] backdrop-blur-xl">
+                <div className="mb-4 flex h-20 w-20 items-center justify-center rounded-[28px] bg-gradient-to-br from-cyan-400 to-blue-500 text-4xl shadow-lg shadow-cyan-500/20">💬</div>
+                <h3 className="mb-2 text-xl font-semibold text-white">Documind RAG Assistant</h3>
+                <p className="max-w-md text-sm leading-6 text-slate-400">
                     Select a chat session from the sidebar history or create a new session to begin asking questions about your indexed documents.
                 </p>
             </div>
@@ -270,54 +260,48 @@ export default function Chat({ activeChatId }) {
     }
 
     return (
-        <div className="flex flex-col h-full w-full rounded-2xl overflow-hidden shadow-xl border border-gray-700 bg-gray-800">
-            {/* Header */}
-            <div className="px-4 py-3 bg-gray-900 text-white flex items-center justify-between border-b border-gray-700">
-                <h2 className="font-semibold text-base">Documind Chatbot</h2>
-                <span className="text-xs text-green-400">● Online</span>
+        <div className="flex h-full w-full flex-col overflow-hidden rounded-[30px] border border-slate-700/70 bg-slate-900/80 shadow-[0_30px_80px_rgba(15,23,42,0.5)] backdrop-blur-xl">
+            <div className="flex items-center justify-between border-b border-slate-800 bg-gradient-to-r from-slate-950 via-slate-900 to-slate-900 px-4 py-3 text-white">
+                <div>
+                    <p className="text-[10px] uppercase tracking-[0.24em] text-cyan-300">Conversation</p>
+                    <h2 className="mt-1 text-base font-semibold">Documind Chatbot</h2>
+                </div>
+                <span className="inline-flex items-center gap-2 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.18em] text-emerald-300">
+                    <span className="h-2 w-2 rounded-full bg-emerald-400" />
+                    Online
+                </span>
             </div>
 
-            {/* Error Banner */}
             {error && (
-                <div className="bg-red-900/30 border-b border-red-700 px-4 py-3">
-                    <div className="flex items-start justify-between">
+                <div className="border-b border-red-700/60 bg-red-950/35 px-4 py-3">
+                    <div className="flex items-start justify-between gap-3">
                         <div>
-                            <p className="text-sm font-semibold text-red-400">{error}</p>
-                            {errorDetails && (
-                                <p className="text-xs text-red-300 mt-1">{errorDetails}</p>
-                            )}
+                            <p className="text-sm font-semibold text-red-300">{error}</p>
+                            {errorDetails && <p className="mt-1 text-xs text-red-200/80">{errorDetails}</p>}
                         </div>
-                        <button
-                            onClick={() => setError(null)}
-                            className="text-red-400 hover:text-red-300 ml-2"
-                        >
-                            ✕
-                        </button>
+                        <button onClick={() => setError(null)} className="text-red-300 transition hover:text-red-200 cursor-pointer">✕</button>
                     </div>
                 </div>
             )}
 
-            {/* Messages */}
-            <div className="flex-1 overflow-y-auto px-4 py-3 scrollbar-thumb-cyan-600 space-y-3">
+            <div className="flex-1 space-y-3 overflow-y-auto px-4 py-4">
                 {loadingMessages ? (
-                    <div className="text-center text-sm text-cyan-400 py-8">Loading history...</div>
+                    <div className="py-8 text-center text-sm text-cyan-300">Loading history...</div>
                 ) : messages.length === 0 ? (
-                    <div className="text-center text-sm text-gray-500 py-8">No messages yet. Ask a question to begin!</div>
+                    <div className="py-8 text-center text-sm text-slate-500">No messages yet. Ask a question to begin.</div>
                 ) : (
                     messages.map((m) => (
-                        <div
-                            key={m.id}
-                            className={`flex ${m.from === "user" ? "justify-end" : "justify-start"}`}
-                        >
+                        <div key={m.id} className={`flex ${m.from === "user" ? "justify-end" : "justify-start"}`}>
                             <div
-                                className={`max-w-[75%] px-3 py-2 rounded-2xl whitespace-pre-wrap overflow-wrap ${
+                                className={`max-w-[78%] whitespace-pre-wrap rounded-[22px] px-4 py-3 text-sm leading-7 shadow-sm ${
                                     m.from === "user"
-                                        ? "bg-blue-600 text-white rounded-br-sm"
-                                        : m.text.startsWith("⚠️") ? "bg-red-900/50 text-red-200 rounded-bl-sm"
-                                        : "bg-gray-700 text-gray-100 rounded-bl-sm"
-                                    }`}
+                                        ? "bg-gradient-to-r from-cyan-500 to-blue-600 text-white rounded-br-md"
+                                        : m.text.startsWith("⚠️")
+                                            ? "bg-red-950/50 text-red-100 border border-red-500/20 rounded-bl-md"
+                                            : "border border-slate-700/60 bg-slate-800/80 text-slate-100 rounded-bl-md"
+                                }`}
                             >
-                                {m.text || <span className="text-xs text-gray-450 italic">Streaming...</span>}
+                                {m.text || <span className="text-xs italic text-slate-400">Streaming...</span>}
                             </div>
                         </div>
                     ))
@@ -325,11 +309,11 @@ export default function Chat({ activeChatId }) {
 
                 {loading && (
                     <div className="flex justify-start">
-                        <div className="bg-gray-700 text-gray-100 rounded-2xl rounded-bl-sm px-4 py-3 max-w-[75%] flex items-center gap-1.5">
-                            <span className="text-xs text-cyan-300">Documind is thinking</span>
-                            <span className="h-1.5 w-1.5 bg-cyan-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></span>
-                            <span className="h-1.5 w-1.5 bg-cyan-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></span>
-                            <span className="h-1.5 w-1.5 bg-cyan-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></span>
+                        <div className="flex max-w-[75%] items-center gap-2 rounded-[22px] rounded-bl-md border border-slate-700/60 bg-slate-800/80 px-4 py-3 text-sm text-slate-200">
+                            <span className="text-xs uppercase tracking-[0.16em] text-cyan-300">Thinking</span>
+                            <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-cyan-400" style={{ animationDelay: '0ms' }}></span>
+                            <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-cyan-400" style={{ animationDelay: '150ms' }}></span>
+                            <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-cyan-400" style={{ animationDelay: '300ms' }}></span>
                         </div>
                     </div>
                 )}
@@ -337,9 +321,8 @@ export default function Chat({ activeChatId }) {
                 <div ref={messagesEndRef} />
             </div>
 
-            {/* Input */}
-            <div className="border-t border-gray-700 bg-gray-900 p-3">
-                <div className="flex items-end gap-2 rounded-2xl border border-gray-700 bg-gray-800 px-3 py-2">
+            <div className="border-t border-slate-800 bg-slate-950/60 p-3">
+                <div className="flex items-end gap-3 rounded-[24px] border border-slate-700/80 bg-slate-900/90 px-3 py-2 shadow-inner shadow-slate-950/30">
                     <textarea
                         ref={textareaRef}
                         value={input}
@@ -348,12 +331,12 @@ export default function Chat({ activeChatId }) {
                         rows={1}
                         disabled={loading}
                         placeholder="Ask a question about your documents..."
-                        className="flex-1 min-h-5 max-h-32 resize-none overflow-y-auto bg-transparent text-white placeholder-gray-400 outline-none leading-6 py-1 scrollbar-none disabled:opacity-50"
+                        className="max-h-40 min-h-[44px] flex-1 resize-none overflow-y-auto bg-transparent px-1 py-2 text-base text-slate-100 placeholder:text-slate-500 focus:outline-none disabled:cursor-not-allowed disabled:opacity-60"
                     />
                     <button
                         onClick={send}
                         disabled={loading || !input.trim()}
-                        className="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-700 disabled:text-gray-400 transition-colors text-white px-4 py-2 rounded-lg text-sm font-semibold cursor-pointer"
+                        className="rounded-2xl bg-gradient-to-r from-cyan-400 to-blue-600 px-4 py-2.5 text-sm font-semibold text-slate-950 shadow-lg shadow-cyan-500/20 transition hover:brightness-110 disabled:cursor-not-allowed disabled:from-slate-700 disabled:to-slate-700 disabled:text-slate-400 disabled:shadow-none cursor-pointer"
                     >
                         Send
                     </button>
