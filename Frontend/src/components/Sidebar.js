@@ -146,12 +146,31 @@ export default function Sidebar({
         body: formData,
       });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.detail || "Upload failed");
+      const responseText = await response.text();
+      let responseData;
+      try {
+        responseData = responseText ? JSON.parse(responseText) : {};
+      } catch {
+        responseData = null;
       }
 
-      const newDoc = await response.json();
+      if (!response.ok) {
+        const serverMessage = responseData?.detail || responseData?.message;
+        const plainTextMessage = responseData ? "" : responseText
+          .replace(/<[^>]*>/g, " ")
+          .replace(/\s+/g, " ")
+          .trim();
+        const usefulPlainText = plainTextMessage && !/^internal server error$/i.test(plainTextMessage)
+          ? plainTextMessage.slice(0, 240)
+          : "The server could not process the upload. Please try again or check the backend logs.";
+        throw new Error(serverMessage || `${usefulPlainText} (HTTP ${response.status})`);
+      }
+
+      if (!responseData?.id || !responseData?.filename) {
+        throw new Error("The server returned an invalid upload response. Please try again.");
+      }
+
+      const newDoc = responseData;
       setDocuments(prev => [newDoc, ...prev]);
       notify({
         type: "success",

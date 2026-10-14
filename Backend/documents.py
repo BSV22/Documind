@@ -114,19 +114,8 @@ async def upload_document(
             log_error(e, "upload_document text extraction")
             raise ExternalServiceError("Document Processing", str(e))
         
-        # Generate embeddings
-        try:
-            embedding_model = GeminiEmbedding()
-            embeddings = []
-            for chunk in chunks:
-                vector = embedding_model.embed(chunk)
-                embeddings.append(vector)
-            logger.info(f"Generated {len(embeddings)} embeddings")
-        except Exception as e:
-            log_error(e, "upload_document embeddings")
-            raise handle_gemini_error(e)
-        
-        # Insert document metadata
+        # Insert metadata before indexing because each bounded chunk batch is
+        # persisted as it is embedded, rather than retaining every vector in RAM.
         try:
             with get_db_connection() as conn:
                 with conn.cursor() as cursor:
@@ -139,14 +128,39 @@ async def upload_document(
         except psycopg2.Error as e:
             log_error(e, "upload_document insert metadata")
             raise handle_database_error(e)
-        
-        # Index chunks in vector store
+
         try:
-            store.add_chunks_batch(chunks, embeddings, doc_id, current_user["id"])
+            embedding_model = GeminiEmbedding()
+            batch_size = embedding_model.batch_size
+            for start in range(0, len(chunks), batch_size):
+                chunk_batch = chunks[start:start + batch_size]
+                try:
+                    embeddings = embedding_model.embed_many(chunk_batch)
+                except Exception as e:
+                    log_error(e, "upload_document embeddings")
+                    raise handle_gemini_error(e)
+
+                try:
+                    store.add_chunks_batch(
+                        chunk_batch,
+                        embeddings,
+                        doc_id,
+                        current_user["id"],
+                    )
+                except Exception as e:
+                    log_error(e, "upload_document chunk indexing")
+                    raise ExternalServiceError("Vector Store", str(e))
+
+                logger.info(
+                    "Indexed chunk batch %s/%s for document %s",
+                    min(start + batch_size, len(chunks)),
+                    len(chunks),
+                    doc_id,
+                )
+
             logger.info(f"Document indexed successfully: {doc_id}")
         except Exception as e:
-            log_error(e, "upload_document chunk indexing")
-            # Clean up the document record if chunk indexing fails
+            # Metadata deletion cascades any batches already written.
             try:
                 with get_db_connection() as conn:
                     with conn.cursor() as cursor:
@@ -154,8 +168,7 @@ async def upload_document(
                     conn.commit()
             except Exception as cleanup_error:
                 logger.error(f"Failed to clean up document record: {cleanup_error}")
-            
-            raise ExternalServiceError("Vector Store", str(e))
+            raise
         
         return {"id": doc_id, "filename": safe_filename}
     

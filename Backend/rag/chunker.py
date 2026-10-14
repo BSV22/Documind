@@ -6,8 +6,8 @@ from rag.document import Document
 class TextChunker:
 
     def __init__(self,
-                 chunk_size=500,
-                 overlap=100):
+                 chunk_size=2000,
+                 overlap=200):
 
         self.chunk_size = chunk_size
         self.overlap = overlap

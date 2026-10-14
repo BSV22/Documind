@@ -115,8 +115,24 @@ def handle_gemini_error(error: Exception) -> ExternalServiceError:
             return ExternalServiceError("Gemini", "Invalid request format.")
     elif "401" in error_msg or "api_key" in error_msg.lower():
         return ExternalServiceError("Gemini", "Invalid API key. Please check your configuration.")
-    elif "429" in error_msg:
-        return ExternalServiceError("Gemini", "Rate limit exceeded. Please try again later.")
+    elif "429" in error_msg or "rate limit" in error_msg.lower() or "quota exceeded" in error_msg.lower():
+        retry_after = None
+        details = getattr(error, "details", {}) or {}
+        error_details = details.get("error", details)
+        for detail in error_details.get("details", []):
+            if str(detail.get("@type", "")).endswith("RetryInfo"):
+                retry_delay = str(detail.get("retryDelay", ""))
+                if retry_delay.endswith("s"):
+                    try:
+                        retry_after = max(0, round(float(retry_delay[:-1])))
+                    except ValueError:
+                        pass
+                break
+
+        message = "Gemini request quota exceeded. Please try again later."
+        if retry_after is not None:
+            message = f"Gemini request quota exceeded. Please retry in about {retry_after} seconds."
+        return ExternalServiceError("Gemini", message)
     elif "503" in error_msg or "unavailable" in error_msg.lower():
         return ExternalServiceError("Gemini", "Service unavailable. Please try again later.")
     elif "timeout" in error_msg.lower() or "deadline" in error_msg.lower():

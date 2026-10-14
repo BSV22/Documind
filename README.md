@@ -1,6 +1,6 @@
 # Documind - RAG Web Application
 
-Documind is a Retrieval-Augmented Generation (RAG) web application that enables users to upload PDF documents and engage in context-aware conversations based on their content. The system uses the Google Gemini API for both text embeddings (`gemini-embedding-001`) and conversational response generation.
+Documind is a Retrieval-Augmented Generation (RAG) web application that enables users to upload PDF or Markdown documents and ask context-aware questions about their content. The system uses the Google Gemini API for text embeddings (`gemini-embedding-001`) and conversational response generation.
 
 ---
 
@@ -24,6 +24,18 @@ RagWeb/
 
 1. **Frontend (Next.js)**: Runs independently on port `5173`. Communicates with the backend exclusively via relative API routes `/api/*` mapped via Next.js proxy rewrites to keep client code clean and avoid CORS issues.
 2. **Backend (FastAPI)**: Runs independently on port `8000`. Handles user session validation, JWT generation, database interactions (Supabase PostgreSQL), document ingestion, vector storage, and Gemini API calls.
+
+---
+
+## Document uploads and indexing
+
+- The uploader accepts PDF and UTF-8 Markdown (`.md`) files up to **50 MiB**. This is the application-level limit; the hosting provider can impose a lower request-body limit.
+- PDFs are indexed from extractable text. Scanned/image-only PDFs may not produce searchable text because the current ingestion pipeline does not perform OCR.
+- Extracted text is split into chunks of 2,000 characters with 200 characters of overlap. Gemini generates 768-dimensional embeddings in batches of up to 64 chunks, which are then stored in PostgreSQL/pgvector.
+- Gemini quotas are shared by the API project and can still limit indexing. The backend retries short transient rate limits; when Gemini supplies a longer retry delay, the upload fails with that wait guidance rather than keeping the HTTP request open. Failed indexing is cleaned up; upload the document again after the quota window resets.
+- The repository's optional Vercel Python deployment (`Backend/vercel.json`) is subject to Vercel Functions' **4.5 MB request-body limit**, below the app's 50 MiB limit. The frontend rewrite defaults to the Render backend URL below; confirm the actual deployment host before relying on the 50 MiB limit.
+
+In chat, assistant messages are streamed. Enable **Show retrieved chunks** in Settings to inspect the excerpts used for an answer; when enabled, excerpts are saved with the assistant message and shown again in chat history.
 
 ---
 
