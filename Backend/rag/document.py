@@ -37,3 +37,17 @@ class PDFLoader:
                 "pages": len(reader.pages)
             }
         )
+
+
+class MarkdownLoader:
+    """Load a UTF-8 Markdown file as text for chunking and retrieval."""
+
+    def load(self, markdown_path: str) -> Document:
+        with open(markdown_path, "r", encoding="utf-8-sig") as markdown_file:
+            text = markdown_file.read()
+
+        return Document(
+            id=str(uuid.uuid4()),
+            text=text,
+            metadata={"filename": markdown_path}
+        )

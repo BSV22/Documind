@@ -1,9 +1,21 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import { apiGet, getErrorMessage } from "../utils/api";
 
-export default function Chat({ activeChatId }) {
+function MarkdownTable({ children }) {
+    return (
+        <div className="chat-table-wrap">
+            <table>{children}</table>
+        </div>
+    );
+}
+
+const markdownComponents = { table: MarkdownTable };
+
+export default function Chat({ activeChatId, settings }) {
     const [messages, setMessages] = useState([]);
     const [input, setInput] = useState("");
     const [loading, setLoading] = useState(false);
@@ -49,8 +61,10 @@ export default function Chat({ activeChatId }) {
     }, [activeChatId]);
 
     useEffect(() => {
-        messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-    }, [messages, loading]);
+        if (settings?.autoScroll !== false) {
+            messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+        }
+    }, [messages, loading, settings?.autoScroll]);
 
     useEffect(() => {
         const textarea = textareaRef.current;
@@ -207,6 +221,20 @@ export default function Chat({ activeChatId }) {
                     });
                 }
             } finally {
+                if (
+                    streamFinished &&
+                    !hasError &&
+                    settings?.desktopNotifications &&
+                    document.visibilityState === "hidden" &&
+                    "Notification" in window &&
+                    Notification.permission === "granted"
+                ) {
+                    try {
+                        new Notification("Documind", { body: "Your response is ready." });
+                    } catch (notificationError) {
+                        console.warn("Could not display desktop notification:", notificationError);
+                    }
+                }
                 setLoading(false);
             }
         } catch (err) {
@@ -293,15 +321,25 @@ export default function Chat({ activeChatId }) {
                     messages.map((m) => (
                         <div key={m.id} className={`flex ${m.from === "user" ? "justify-end" : "justify-start"}`}>
                             <div
-                                className={`max-w-[78%] whitespace-pre-wrap rounded-[22px] px-4 py-3 text-sm leading-7 shadow-sm ${
+                                className={`max-w-[78%] break-words rounded-[22px] px-4 py-3 text-sm leading-7 shadow-sm ${
                                     m.from === "user"
-                                        ? "bg-[#1f6feb] text-white rounded-br-md"
+                                        ? "whitespace-pre-wrap bg-[#1f6feb] text-white rounded-br-md"
                                         : m.text.startsWith("⚠️")
-                                            ? "bg-red-950/50 text-red-100 border border-red-500/20 rounded-bl-md"
-                                            : "border border-[#30363d] bg-[#161b22] text-[#e6edf3] rounded-bl-md"
+                                            ? "whitespace-pre-wrap bg-red-950/50 text-red-100 border border-red-500/20 rounded-bl-md"
+                                            : "whitespace-normal border border-[#30363d] bg-[#161b22] text-[#e6edf3] rounded-bl-md"
                                 }`}
                             >
-                                {m.text || <span className="text-xs italic text-slate-400">Streaming...</span>}
+                                {!m.text ? (
+                                    <span className="text-xs italic text-slate-400">Streaming...</span>
+                                ) : m.from === "bot" && settings?.markdownFormatting !== false && !m.text.startsWith("⚠️") ? (
+                                    <div className="chat-markdown">
+                                        <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
+                                            {m.text}
+                                        </ReactMarkdown>
+                                    </div>
+                                ) : (
+                                    m.text
+                                )}
                             </div>
                         </div>
                     ))

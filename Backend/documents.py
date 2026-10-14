@@ -2,6 +2,7 @@ import os
 import uuid
 import shutil
 import json
+from pathlib import PurePath
 import psycopg2
 import psycopg2.extras
 import logging
@@ -18,7 +19,7 @@ from error_handlers import (
 )
 
 # RAG module imports
-from rag.document import PDFLoader
+from rag.document import MarkdownLoader, PDFLoader
 from rag.chunker import TextChunker
 from rag.embeddings import GeminiEmbedding
 from rag.vector_store import VectorStore
@@ -56,7 +57,7 @@ async def upload_document(
     file: UploadFile = File(...),
     current_user: dict = Depends(get_current_user)
 ):
-    """Upload and process a PDF document."""
+    """Upload and index a PDF or Markdown document."""
     file_path = None
     doc_id = None
     
@@ -64,8 +65,10 @@ async def upload_document(
         # Validate file
         if not file.filename:
             raise ValidationError("Filename is required", "file")
-        if not file.filename.lower().endswith('.pdf'):
-            raise ValidationError("Only PDF files are allowed", "file")
+        safe_filename = PurePath(file.filename.replace("\\", "/")).name
+        extension = os.path.splitext(safe_filename)[1].lower()
+        if extension not in {".pdf", ".md"}:
+            raise ValidationError("Only PDF and Markdown (.md) files are allowed", "file")
         
         # Limit file size to 50MB
         MAX_FILE_SIZE = 50 * 1024 * 1024
@@ -75,7 +78,7 @@ async def upload_document(
         doc_id = str(uuid.uuid4())
         upload_dir = "/tmp" if os.environ.get("VERCEL") else "data/documents"
         os.makedirs(upload_dir, exist_ok=True)
-        file_path = os.path.join(upload_dir, f"{doc_id}.pdf")
+        file_path = os.path.join(upload_dir, f"{doc_id}{extension}")
         
         # Save uploaded file
         try:
@@ -86,21 +89,28 @@ async def upload_document(
             log_error(e, "upload_document file save")
             raise handle_file_error(e)
         
-        # Process PDF
+        # Extract text based on the validated file extension.
         try:
-            loader = PDFLoader()
+            loader = PDFLoader() if extension == ".pdf" else MarkdownLoader()
             document = loader.load(file_path)
             
             chunker = TextChunker()
             chunks = chunker.chunk(document)
             
             if not chunks or len(chunks) == 0:
-                raise ValidationError("PDF file is empty or could not be parsed")
+                raise ValidationError("The file is empty or contains no extractable text")
             
-            logger.info(f"PDF chunked into {len(chunks)} parts")
+            logger.info(f"{extension[1:].upper()} file chunked into {len(chunks)} parts")
+        except ValidationError:
+            raise
+        except UnicodeDecodeError as e:
+            if extension == ".md":
+                raise ValidationError("Markdown files must use UTF-8 text encoding", "file") from e
+            log_error(e, "upload_document PDF text extraction")
+            raise ExternalServiceError("Document Processing", str(e)) from e
         except Exception as e:
-            log_error(e, "upload_document pdf processing")
-            raise ExternalServiceError("PDF Processing", str(e))
+            log_error(e, "upload_document text extraction")
+            raise ExternalServiceError("Document Processing", str(e))
         
         # Generate embeddings
         try:
@@ -120,7 +130,7 @@ async def upload_document(
                 with conn.cursor() as cursor:
                     cursor.execute(
                         "INSERT INTO documents (id, filename, user_id) VALUES (%s, %s, %s)",
-                        (doc_id, file.filename, current_user["id"])
+                        (doc_id, safe_filename, current_user["id"])
                     )
                 conn.commit()
             logger.info(f"Document metadata inserted: {doc_id}")
@@ -145,7 +155,7 @@ async def upload_document(
             
             raise ExternalServiceError("Vector Store", str(e))
         
-        return {"id": doc_id, "filename": file.filename}
+        return {"id": doc_id, "filename": safe_filename}
     
     except (ValidationError, ExternalServiceError):
         # Clean up file if something went wrong
@@ -164,7 +174,7 @@ async def upload_document(
             except Exception as cleanup_error:
                 logger.error(f"Failed to clean up file: {cleanup_error}")
         log_error(e, "upload_document")
-        raise DatabaseError("Failed to process and index PDF")
+        raise DatabaseError("Failed to process and index document")
 
 @router.delete("/documents/{doc_id}")
 def delete_document(doc_id: str, current_user: dict = Depends(get_current_user)):
@@ -178,7 +188,7 @@ def delete_document(doc_id: str, current_user: dict = Depends(get_current_user))
             with get_db_connection() as conn:
                 with conn.cursor(cursor_factory=psycopg2.extras.DictCursor) as cursor:
                     # Verify user owns this document
-                    cursor.execute("SELECT id FROM documents WHERE id = %s AND user_id = %s", (doc_id, current_user["id"]))
+                    cursor.execute("SELECT id, filename FROM documents WHERE id = %s AND user_id = %s", (doc_id, current_user["id"]))
                     doc = cursor.fetchone()
                     
                     if not doc:
@@ -197,7 +207,10 @@ def delete_document(doc_id: str, current_user: dict = Depends(get_current_user))
         
         # Remove uploaded file
         upload_dir = "/tmp" if os.environ.get("VERCEL") else "data/documents"
-        file_path = os.path.join(upload_dir, f"{doc_id}.pdf")
+        extension = os.path.splitext(doc["filename"])[1].lower()
+        if extension not in {".pdf", ".md"}:
+            extension = ".pdf"
+        file_path = os.path.join(upload_dir, f"{doc_id}{extension}")
         if os.path.exists(file_path):
             try:
                 os.remove(file_path)

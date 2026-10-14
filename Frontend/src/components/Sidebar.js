@@ -11,7 +11,14 @@ const sidebarItems = [
   { id: "settings", label: "Settings" },
 ];
 
-export default function Sidebar({ isOpen = true, activeChatId, setActiveChatId }) {
+export default function Sidebar({
+  isOpen = true,
+  activeChatId,
+  setActiveChatId,
+  settings,
+  onSettingChange,
+  onResetSettings,
+}) {
   const auth = useContext(AuthContext);
   const [activePanel, setActivePanel] = useState("history");
   const [chats, setChats] = useState([]);
@@ -20,6 +27,7 @@ export default function Sidebar({ isOpen = true, activeChatId, setActiveChatId }
   const [loadingDocs, setLoadingDocs] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState("");
+  const [settingsNotice, setSettingsNotice] = useState("");
 
   const fetchChats = useCallback(async () => {
     setLoadingChats(true);
@@ -72,7 +80,7 @@ export default function Sidebar({ isOpen = true, activeChatId, setActiveChatId }
 
   const handleDeleteChat = async (e, chatId) => {
     e.stopPropagation();
-    if (!window.confirm("Are you sure you want to delete this chat?")) return;
+    if (settings?.confirmDelete !== false && !window.confirm("Are you sure you want to delete this chat?")) return;
     try {
       await apiDelete(`/api/chats/${chatId}`);
       setChats(prev => prev.filter(c => c.id !== chatId));
@@ -85,11 +93,41 @@ export default function Sidebar({ isOpen = true, activeChatId, setActiveChatId }
     }
   };
 
+  const toggleSetting = async (key) => {
+    const nextValue = !settings?.[key];
+    if (key === "desktopNotifications" && nextValue) {
+      if (!("Notification" in window)) {
+        setSettingsNotice("Desktop notifications are not supported by this browser.");
+        return;
+      }
+
+      try {
+        const permission = Notification.permission === "default"
+          ? await Notification.requestPermission()
+          : Notification.permission;
+        if (permission !== "granted") {
+          setSettingsNotice("Allow notifications in your browser to enable this option.");
+          return;
+        }
+      } catch {
+        setSettingsNotice("Could not request notification permission from this browser.");
+        return;
+      }
+    }
+
+    setSettingsNotice("");
+    onSettingChange?.(key, nextValue);
+  };
+
   const handleUploadDocument = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
-    if (!file.name.toLowerCase().endsWith(".pdf")) {
-      setUploadError("Only PDF documents are supported.");
+    if (!/\.(pdf|md)$/i.test(file.name)) {
+      setUploadError("Choose a PDF or Markdown (.md) document.");
+      return;
+    }
+    if (file.size > 50 * 1024 * 1024) {
+      setUploadError("File size exceeds the 50MB limit.");
       return;
     }
 
@@ -170,7 +208,7 @@ export default function Sidebar({ isOpen = true, activeChatId, setActiveChatId }
             <button
               key={item.id}
               onClick={() => setActivePanel(item.id)}
-              className={`rounded-2xl px-2 py-2 text-center text-[10px] font-semibold uppercase tracking-[0.18em] transition-all duration-200 ${
+              className={`min-w-0 whitespace-nowrap rounded-2xl px-2 py-2 text-center text-[10px] font-semibold uppercase tracking-[0.12em] transition-all duration-200 ${
                 activePanel === item.id
                   ? "bg-[#1f6feb] text-white shadow-md shadow-blue-950/40"
                   : "border border-transparent bg-[#21262d] text-[#8b949e] hover:border-[#30363d] hover:bg-[#30363d] hover:text-[#e6edf3]"
@@ -238,24 +276,24 @@ export default function Sidebar({ isOpen = true, activeChatId, setActiveChatId }
           <div className="space-y-4 rounded-xl border border-[#30363d] bg-[#161b22]/55 p-3">
             <div>
               <h3 className="text-base font-semibold text-white">Knowledge Source</h3>
-              <p className="text-[11px] text-slate-400">Upload PDFs and index them into your private vector database.</p>
+              <p className="text-[11px] text-slate-400">Upload PDFs or Markdown files to index them for chat.</p>
             </div>
 
             <div className="rounded-xl border border-dashed border-[#30363d] bg-[#0d1117] p-4 text-center transition hover:border-[#2f81f7]/70 hover:bg-[#161b22]">
               <label className="block cursor-pointer">
                 <span className="mb-2 block text-2xl">📄</span>
                 <span className="block text-xs font-semibold uppercase tracking-[0.1em] text-[#58a6ff]">
-                  {uploading ? "Indexing file..." : "Upload PDF"}
+                  {uploading ? "Indexing file..." : "Upload PDF or .md"}
                 </span>
-                <span className="mt-1 block text-[10px] text-slate-500">Max size 10MB</span>
-                <input type="file" accept=".pdf" onChange={handleUploadDocument} disabled={uploading} className="hidden" />
+                <span className="mt-1 block text-[10px] text-slate-500">PDF or Markdown · Max size 50MB</span>
+                <input type="file" accept=".pdf,.md,application/pdf,text/markdown,text/plain" onChange={handleUploadDocument} disabled={uploading} className="hidden" />
               </label>
             </div>
 
             {uploadError && <p className="px-2 text-center text-xs text-red-400">{uploadError}</p>}
 
             <div className="space-y-2">
-              <h4 className="text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-400">Indexed PDFs</h4>
+              <h4 className="text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-400">Indexed Documents</h4>
               {loadingDocs ? (
                 <p className="py-2 text-center text-xs text-[#58a6ff]">Loading documents...</p>
               ) : documents.length === 0 ? (
@@ -319,20 +357,49 @@ export default function Sidebar({ isOpen = true, activeChatId, setActiveChatId }
 
         {activePanel === "settings" && (
           <div className="space-y-4 rounded-xl border border-[#30363d] bg-[#161b22]/55 p-3">
-            <div>
-              <h3 className="text-base font-semibold text-white">Preferences</h3>
-              <p className="text-sm text-slate-400">Adjust workspace actions.</p>
-            </div>
-            <div className="space-y-2 rounded-xl border border-[#30363d] bg-[#0d1117] p-3">
-              <div className="flex items-center justify-between gap-3 text-sm text-slate-300">
-                <span>Dark mode</span>
-                <span className="rounded-full border border-[#30363d] bg-[#21262d] px-3 py-1 text-[10px] uppercase tracking-[0.1em] text-[#8b949e]">Enabled</span>
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <h3 className="text-base font-semibold text-white">Preferences</h3>
+                <p className="text-sm text-slate-400">Customize chat behavior on this device.</p>
               </div>
-              <div className="flex items-center justify-between gap-3 text-sm text-slate-300">
-                <span>Notifications</span>
-                <span className="rounded-full border border-[#30363d] bg-[#21262d] px-3 py-1 text-[10px] uppercase tracking-[0.1em] text-[#8b949e]">On</span>
-              </div>
+              <button
+                type="button"
+                onClick={onResetSettings}
+                className="shrink-0 rounded-lg border border-[#30363d] px-2.5 py-1.5 text-xs font-medium text-slate-300 transition hover:border-[#58a6ff] hover:text-white"
+              >
+                Reset
+              </button>
             </div>
+
+            <div className="divide-y divide-[#30363d] rounded-xl border border-[#30363d] bg-[#0d1117] px-3">
+              {[
+                { key: "autoScroll", label: "Auto-scroll", description: "Keep the newest message in view." },
+                { key: "markdownFormatting", label: "Format responses", description: "Render headings, lists, and tables." },
+                { key: "desktopNotifications", label: "Desktop notifications", description: "Notify when a reply finishes in the background." },
+                { key: "confirmDelete", label: "Confirm before deleting", description: "Ask before removing a chat." },
+              ].map((option) => {
+                const enabled = Boolean(settings?.[option.key]);
+                return (
+                  <div key={option.key} className="flex items-center justify-between gap-3 py-3">
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium text-slate-200">{option.label}</p>
+                      <p className="mt-0.5 text-xs leading-5 text-slate-500">{option.description}</p>
+                    </div>
+                    <button
+                      type="button"
+                      role="switch"
+                      aria-checked={enabled}
+                      aria-label={option.label}
+                      onClick={() => toggleSetting(option.key)}
+                      className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors ${enabled ? "bg-[#1f6feb]" : "bg-[#30363d]"}`}
+                    >
+                      <span className={`inline-block h-4 w-4 rounded-full bg-white transition-transform ${enabled ? "translate-x-6" : "translate-x-1"}`} />
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+            {settingsNotice && <p role="status" className="text-xs leading-5 text-amber-300">{settingsNotice}</p>}
           </div>
         )}
       </div>

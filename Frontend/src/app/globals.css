@@ -64,6 +64,107 @@ textarea {
   color: white;
 }
 
+.chat-markdown {
+  overflow-wrap: anywhere;
+}
+
+.chat-markdown > :first-child {
+  margin-top: 0;
+}
+
+.chat-markdown > :last-child {
+  margin-bottom: 0;
+}
+
+.chat-markdown p {
+  margin: 0.65rem 0;
+}
+
+.chat-markdown ul,
+.chat-markdown ol {
+  margin: 0.65rem 0;
+  padding-left: 1.5rem;
+}
+
+.chat-markdown ul {
+  list-style: disc;
+}
+
+.chat-markdown ol {
+  list-style: decimal;
+}
+
+.chat-markdown li + li {
+  margin-top: 0.25rem;
+}
+
+.chat-markdown strong {
+  font-weight: 700;
+}
+
+.chat-markdown a {
+  color: #58a6ff;
+  text-decoration: underline;
+}
+
+.chat-markdown pre {
+  overflow-x: auto;
+  border: 1px solid #30363d;
+  border-radius: 0.5rem;
+  background: #0d1117;
+  padding: 0.75rem;
+}
+
+.chat-markdown code {
+  overflow-wrap: anywhere;
+  border-radius: 0.25rem;
+  background: #0d1117;
+  padding: 0.1rem 0.25rem;
+}
+
+.chat-markdown pre code {
+  background: transparent;
+  padding: 0;
+}
+
+.chat-table-wrap {
+  max-width: 100%;
+  margin: 0.75rem 0;
+  overflow-x: auto;
+  border: 1px solid #30363d;
+  border-radius: 0.5rem;
+}
+
+.chat-markdown table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+}
+
+.chat-markdown th,
+.chat-markdown td {
+  min-width: 6rem;
+  border-right: 1px solid #30363d;
+  border-bottom: 1px solid #30363d;
+  padding: 0.5rem 0.75rem;
+  vertical-align: top;
+}
+
+.chat-markdown th {
+  background: #21262d;
+  color: #f0f6fc;
+  font-weight: 600;
+}
+
+.chat-markdown tr:last-child td {
+  border-bottom: 0;
+}
+
+.chat-markdown th:last-child,
+.chat-markdown td:last-child {
+  border-right: 0;
+}
+
 ::-webkit-scrollbar {
   width: 10px;
   height: 10px;

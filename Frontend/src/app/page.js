@@ -8,13 +8,53 @@ import Sidebar from '../components/Sidebar';
 import AuthPage from '../components/authpage';
 import { useAuth } from '../context/AuthContext';
 
+const DEFAULT_SETTINGS = {
+  autoScroll: true,
+  markdownFormatting: true,
+  desktopNotifications: false,
+  confirmDelete: true,
+};
+
 export default function Home() {
   const { isAuthenticated, loading, user } = useAuth();
   const [showSidebar, setShowSidebar] = useState(true);
   const [activeChatId, setActiveChatId] = useState(null);
+  const [settings, setSettings] = useState(DEFAULT_SETTINGS);
 
   useEffect(() => {
-    setActiveChatId(null);
+    const timer = setTimeout(() => {
+      try {
+        const savedSettings = JSON.parse(localStorage.getItem('documind.preferences.v1') || '{}');
+        setSettings({ ...DEFAULT_SETTINGS, ...savedSettings });
+      } catch (error) {
+        console.warn('Could not load saved preferences:', error);
+      }
+    }, 0);
+    return () => clearTimeout(timer);
+  }, []);
+
+  const handleSettingChange = (key, value) => {
+    const updatedSettings = { ...settings, [key]: value };
+    setSettings(updatedSettings);
+    try {
+      localStorage.setItem('documind.preferences.v1', JSON.stringify(updatedSettings));
+    } catch (error) {
+      console.warn('Could not save preferences:', error);
+    }
+  };
+
+  const resetSettings = () => {
+    setSettings(DEFAULT_SETTINGS);
+    try {
+      localStorage.setItem('documind.preferences.v1', JSON.stringify(DEFAULT_SETTINGS));
+    } catch (error) {
+      console.warn('Could not reset preferences:', error);
+    }
+  };
+
+  useEffect(() => {
+    const timer = setTimeout(() => setActiveChatId(null), 0);
+    return () => clearTimeout(timer);
   }, [user?.id]);
 
   if (loading) {
@@ -44,9 +84,12 @@ export default function Home() {
             isOpen={showSidebar}
             activeChatId={activeChatId}
             setActiveChatId={setActiveChatId}
+            settings={settings}
+            onSettingChange={handleSettingChange}
+            onResetSettings={resetSettings}
           />
           <div className="flex min-w-0 flex-1 justify-center">
-            <Chat activeChatId={activeChatId} setActiveChatId={setActiveChatId} />
+            <Chat activeChatId={activeChatId} settings={settings} />
           </div>
         </div>
       </main>
