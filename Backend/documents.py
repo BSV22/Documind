@@ -266,6 +266,7 @@ async def event_generator(
         intent = detect_intent(message)
         response_cache_key = None
         accumulated_response = None
+        retrieved_sources = []
 
         if intent in {"GREETING", "SMALL_TALK"}:
             direct_response = "How may I help you?"
@@ -313,6 +314,7 @@ async def event_generator(
             if cached_response is not None:
                 logger.info("RAG response cache hit for user %s", user_id)
                 accumulated_response = cached_response["text"]
+                retrieved_sources = cached_response.get("sources", [])
                 if show_retrieved_chunks and cached_response.get("sources"):
                     yield f"data: {json.dumps({'sources': cached_response['sources']})}\n\n"
                 yield f"data: {json.dumps({'text': accumulated_response})}\n\n"
@@ -325,15 +327,18 @@ async def event_generator(
                     contexts = retriever.retrieve(message, user_id=user_id, top_k=5)
                     logger.info(f"Retrieved {len(contexts)} contexts for document inquiry")
                     if contexts:
+                        retrieved_sources = [
+                            {"rank": index, "text": text}
+                            for index, (_, text) in enumerate(contexts, start=1)
+                        ]
                         if show_retrieved_chunks:
-                            sources = [
-                                {"rank": index, "text": text}
-                                for index, (_, text) in enumerate(contexts, start=1)
-                            ]
-                            yield f"data: {json.dumps({'sources': sources})}\n\n"
+                            yield f"data: {json.dumps({'sources': retrieved_sources})}\n\n"
                         prompt = PromptBuilder().build(message, contexts)
                     else:
-                        direct_response = "How may I help you?"
+                        direct_response = (
+                            "I couldn't find relevant content in your indexed documents. "
+                            "Try rephrasing your question or upload a document with that information."
+                        )
                 except Exception as e:
                     log_error(e, "event_generator retrieval")
                     yield f"data: {json.dumps({'error': 'Failed to retrieve document context. ' + str(e)})}\n\n"
@@ -380,8 +385,15 @@ async def event_generator(
                         (user_msg_id, chat_id, message)
                     )
                     cur.execute(
-                        "INSERT INTO messages (id, chat_id, from_user, text) VALUES (%s, %s, FALSE, %s)",
-                        (bot_msg_id, chat_id, accumulated_response)
+                        "INSERT INTO messages (id, chat_id, from_user, text, sources) VALUES (%s, %s, FALSE, %s, %s)",
+                        (
+                            bot_msg_id,
+                            chat_id,
+                            accumulated_response,
+                            psycopg2.extras.Json(retrieved_sources)
+                            if show_retrieved_chunks and retrieved_sources
+                            else None,
+                        )
                     )
                 conn.commit()
             logger.info(f"Chat messages saved for chat {chat_id}")

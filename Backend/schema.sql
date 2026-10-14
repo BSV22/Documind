@@ -45,6 +45,7 @@ CREATE TABLE IF NOT EXISTS messages (
     chat_id VARCHAR(255) REFERENCES chats(id) ON DELETE CASCADE,
     from_user BOOLEAN NOT NULL,
     text TEXT NOT NULL,
+    sources JSONB,
     timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 

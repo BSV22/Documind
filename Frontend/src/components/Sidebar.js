@@ -34,15 +34,15 @@ export default function Sidebar({
     try {
       const data = await apiGet("/api/chats");
       setChats(data);
-      if (data.length > 0 && !activeChatId) {
-        setActiveChatId(data[0].id);
+      if (data.length > 0) {
+        setActiveChatId((currentChatId) => currentChatId || data[0].id);
       }
     } catch (err) {
       console.error("Failed to fetch chats:", err);
     } finally {
       setLoadingChats(false);
     }
-  }, [activeChatId, setActiveChatId]);
+  }, [setActiveChatId]);
 
   const fetchDocuments = useCallback(async () => {
     setLoadingDocs(true);

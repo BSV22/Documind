@@ -138,6 +138,7 @@ def init_db():
                     cursor.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS otp_code VARCHAR(6);")
                     cursor.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS otp_expires_at TIMESTAMP;")
                     cursor.execute("UPDATE users SET is_verified = TRUE WHERE is_verified IS NULL;")
+                    cursor.execute("ALTER TABLE messages ADD COLUMN IF NOT EXISTS sources JSONB;")
                 conn.commit()
             logger.info("Database schema and migrations initialized successfully.")
         except psycopg2.Error as e:

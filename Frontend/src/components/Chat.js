@@ -25,12 +25,22 @@ export default function Chat({ activeChatId, settings }) {
 
     const messagesEndRef = useRef(null);
     const textareaRef = useRef(null);
+    const historyRequestIdRef = useRef(0);
+    const activeChatIdRef = useRef(activeChatId);
 
     useEffect(() => {
+        activeChatIdRef.current = activeChatId;
+    }, [activeChatId]);
+
+    useEffect(() => {
+        const requestId = ++historyRequestIdRef.current;
         if (!activeChatId) {
             const timer = setTimeout(() => {
-                setMessages([]);
-                setError(null);
+                if (historyRequestIdRef.current === requestId) {
+                    setMessages([]);
+                    setError(null);
+                    setLoadingMessages(false);
+                }
             }, 0);
             return () => clearTimeout(timer);
         }
@@ -40,20 +50,26 @@ export default function Chat({ activeChatId, settings }) {
             setError(null);
             try {
                 const data = await apiGet(`/api/chats/${activeChatId}/messages`);
-                setMessages(
-                    data.map(m => ({
-                        id: m.id,
-                        from: m.from_user ? "user" : "bot",
-                        text: m.text,
-                    }))
-                );
+                if (historyRequestIdRef.current === requestId) {
+                    setMessages(
+                        data.map(m => ({
+                            id: m.id,
+                            from: m.from_user ? "user" : "bot",
+                            text: m.text,
+                            sources: m.sources || [],
+                        }))
+                    );
+                }
             } catch (err) {
+                if (historyRequestIdRef.current !== requestId) return;
                 console.error("Failed to load messages:", err);
                 setError("Failed to load chat history");
                 setErrorDetails(getErrorMessage(err));
                 setMessages([]);
             } finally {
-                setLoadingMessages(false);
+                if (historyRequestIdRef.current === requestId) {
+                    setLoadingMessages(false);
+                }
             }
         };
 
@@ -89,6 +105,7 @@ export default function Chat({ activeChatId, settings }) {
     const send = async () => {
         if (!input.trim() || !activeChatId || loading) return;
 
+        const requestChatId = activeChatId;
         const userMsgText = input.trim();
         const userMsgId = String(Date.now());
         const userMsg = {
@@ -110,6 +127,12 @@ export default function Chat({ activeChatId, settings }) {
         });
 
         const botMsgId = String(Date.now() + 1);
+        const controller = new AbortController();
+        const requestTimeout = setTimeout(() => controller.abort(), 120000);
+        setMessages((prev) => [
+            ...prev,
+            { id: botMsgId, from: "bot", text: "", sources: [] },
+        ]);
 
         try {
             const response = await fetch("/api/chat", {
@@ -123,25 +146,13 @@ export default function Chat({ activeChatId, settings }) {
                     show_retrieved_chunks: Boolean(settings?.showRetrievedChunks),
                 }),
                 credentials: "same-origin",
-                timeout: 60000,
+                signal: controller.signal,
             });
 
             if (!response.ok) {
                 const errData = await response.json().catch(() => ({}));
                 throw new Error(errData.detail || errData.message || "Server error occurred");
             }
-
-            setMessages((prev) => [
-                ...prev,
-                {
-                    id: botMsgId,
-                    from: "bot",
-                    text: "",
-                    sources: [],
-                },
-            ]);
-
-            setLoading(false);
 
             const reader = response.body.getReader();
             const decoder = new TextDecoder();
@@ -155,9 +166,7 @@ export default function Chat({ activeChatId, settings }) {
                     const { value, done } = await reader.read();
                     if (done) {
                         pendingLine += decoder.decode();
-                        if (pendingLine.trim() === "data: [DONE]") {
-                            streamFinished = true;
-                        }
+                        streamFinished = true;
                         break;
                     }
 
@@ -177,34 +186,40 @@ export default function Chat({ activeChatId, settings }) {
                                 const parsed = JSON.parse(dataStr);
                                 if (parsed.text) {
                                     accumulatedText += parsed.text;
-                                    setMessages((prev) =>
-                                        prev.map((msg) =>
-                                            msg.id === botMsgId
-                                                ? { ...msg, text: accumulatedText }
-                                                : msg
-                                        )
-                                    );
+                                    if (activeChatIdRef.current === requestChatId) {
+                                        setMessages((prev) =>
+                                            prev.map((msg) =>
+                                                msg.id === botMsgId
+                                                    ? { ...msg, text: accumulatedText }
+                                                    : msg
+                                            )
+                                        );
+                                    }
                                 } else if (Array.isArray(parsed.sources)) {
-                                    setMessages((prev) =>
-                                        prev.map((msg) =>
-                                            msg.id === botMsgId
-                                                ? { ...msg, sources: parsed.sources }
-                                                : msg
-                                        )
-                                    );
+                                    if (activeChatIdRef.current === requestChatId) {
+                                        setMessages((prev) =>
+                                            prev.map((msg) =>
+                                                msg.id === botMsgId
+                                                    ? { ...msg, sources: parsed.sources }
+                                                    : msg
+                                            )
+                                        );
+                                    }
                                 } else if (parsed.error) {
                                     hasError = true;
                                     console.warn("Stream error:", parsed.error);
                                     accumulatedText = `⚠️ Error: ${parsed.error}`;
-                                    setMessages((prev) =>
-                                        prev.map((msg) =>
-                                            msg.id === botMsgId
-                                                ? { ...msg, text: accumulatedText }
-                                                : msg
-                                        )
-                                    );
-                                    setError("Failed to process request");
-                                    setErrorDetails(parsed.error);
+                                    if (activeChatIdRef.current === requestChatId) {
+                                        setMessages((prev) =>
+                                            prev.map((msg) =>
+                                                msg.id === botMsgId
+                                                    ? { ...msg, text: accumulatedText }
+                                                    : msg
+                                            )
+                                        );
+                                        setError("Failed to process request");
+                                        setErrorDetails(parsed.error);
+                                    }
                                     break;
                                 }
                             } catch (parseErr) {
@@ -215,15 +230,25 @@ export default function Chat({ activeChatId, settings }) {
                 }
             } catch (streamErr) {
                 console.error("Stream reading error:", streamErr);
-                if (!hasError) {
-                    setError("Stream interrupted");
-                    setErrorDetails("Connection was interrupted while streaming response");
+                if (!hasError && activeChatIdRef.current === requestChatId) {
+                    const timedOut = controller.signal.aborted;
+                    setError(timedOut ? "Response timed out" : "Stream interrupted");
+                    setErrorDetails(
+                        timedOut
+                            ? "The response took too long. Please try again."
+                            : "Connection was interrupted while streaming response"
+                    );
                     setMessages((prev) => {
                         const exists = prev.some(m => m.id === botMsgId);
                         if (exists) {
                             return prev.map(msg =>
                                 msg.id === botMsgId
-                                    ? { ...msg, text: "⚠️ Error: Connection was interrupted. Please try again." }
+                                    ? {
+                                        ...msg,
+                                        text: timedOut
+                                            ? "⚠️ Error: The response timed out. Please try again."
+                                            : "⚠️ Error: Connection was interrupted. Please try again.",
+                                    }
                                     : msg
                             );
                         }
@@ -245,35 +270,26 @@ export default function Chat({ activeChatId, settings }) {
                         console.warn("Could not display desktop notification:", notificationError);
                     }
                 }
-                setLoading(false);
             }
         } catch (err) {
             console.error("Chat error:", err);
 
-            const errorMsg = getErrorMessage(err);
-            setLoading(false);
-            setError("Failed to send message");
-            setErrorDetails(errorMsg);
-
-            setMessages((prev) => {
-                const exists = prev.some(m => m.id === botMsgId);
-                if (exists) {
-                    return prev.map(msg =>
+            const errorMsg = controller.signal.aborted
+                ? "The response timed out. Please try again."
+                : getErrorMessage(err);
+            if (activeChatIdRef.current === requestChatId) {
+                setError("Failed to send message");
+                setErrorDetails(errorMsg);
+                setMessages((prev) =>
+                    prev.map((msg) =>
                         msg.id === botMsgId
                             ? { ...msg, text: `⚠️ Error: ${errorMsg}` }
                             : msg
-                    );
-                }
-                return [
-                    ...prev,
-                    {
-                        id: botMsgId,
-                        from: "bot",
-                        text: `⚠️ Error: ${errorMsg}`,
-                    },
-                ];
-            });
+                    )
+                );
+            }
         } finally {
+            clearTimeout(requestTimeout);
             setLoading(false);
         }
     };
@@ -390,13 +406,13 @@ export default function Chat({ activeChatId, settings }) {
                         onChange={handleChange}
                         onKeyDown={onKeyDown}
                         rows={1}
-                        disabled={loading}
+                        disabled={loading || loadingMessages}
                         placeholder="Ask a question about your documents..."
                         className="max-h-40 min-h-[44px] flex-1 resize-none overflow-y-auto bg-transparent px-1 py-2 text-base text-slate-100 placeholder:text-slate-500 focus:outline-none disabled:cursor-not-allowed disabled:opacity-60"
                     />
                     <button
                         onClick={send}
-                        disabled={loading || !input.trim()}
+                        disabled={loading || loadingMessages || !input.trim()}
                         className="rounded-lg border border-[#3b82f6] bg-[#1f6feb] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[#388bfd] disabled:cursor-not-allowed disabled:border-[#30363d] disabled:bg-[#21262d] disabled:text-[#8b949e] cursor-pointer"
                     >
                         Send

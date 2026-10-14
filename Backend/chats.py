@@ -46,10 +46,14 @@ def create_chat(req: CreateChatRequest, current_user: dict = Depends(get_current
         try:
             with get_db_connection() as conn:
                 with conn.cursor() as cursor:
-                    cursor.execute("INSERT INTO chats (id, title, user_id) VALUES (%s, %s, %s)", (chat_id, req.title, current_user["id"]))
+                    cursor.execute(
+                        "INSERT INTO chats (id, title, user_id) VALUES (%s, %s, %s) RETURNING created_at",
+                        (chat_id, req.title, current_user["id"]),
+                    )
+                    created_at = cursor.fetchone()[0]
                 conn.commit()
             logger.info(f"Chat created: {chat_id} for user {current_user['id']}")
-            return {"id": chat_id, "title": req.title}
+            return {"id": chat_id, "title": req.title, "created_at": created_at}
         except psycopg2.Error as e:
             log_error(e, "create_chat database")
             raise handle_database_error(e)
@@ -106,7 +110,7 @@ def get_messages(chat_id: str, current_user: dict = Depends(get_current_user)):
                         raise ResourceNotFoundError("Chat", chat_id)
                     
                     # Retrieve messages
-                    cursor.execute("SELECT id, from_user, text, timestamp FROM messages WHERE chat_id = %s ORDER BY timestamp ASC", (chat_id,))
+                    cursor.execute("SELECT id, from_user, text, timestamp, sources FROM messages WHERE chat_id = %s ORDER BY timestamp ASC", (chat_id,))
                     rows = cursor.fetchall()
                     logger.info(f"Retrieved {len(rows)} messages for chat {chat_id}")
                     return [dict(r) for r in rows]
