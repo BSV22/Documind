@@ -3,10 +3,12 @@
 import { useState, useEffect, useContext } from "react";
 import { GoogleLogin } from "@react-oauth/google";
 import { AuthContext } from "../context/AuthContext";
+import { useToast } from "../context/ToastContext";
 import { apiPost, getErrorMessage } from "../utils/api";
 
 export default function AuthPage({ onAuthSuccess }) {
   const auth = useContext(AuthContext);
+  const { notify } = useToast();
   const [mode, setMode] = useState("signIn");
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -97,7 +99,11 @@ export default function AuthPage({ onAuthSuccess }) {
       const data = await apiPost("/api/auth/resend-otp", {
         email: verificationEmail
       });
-      alert(data.message || "Verification code resent successfully!");
+      notify({
+        type: "success",
+        title: "Verification code sent",
+        message: data.message || "Check your email for the new code.",
+      });
     } catch (err) {
       console.error("Resend OTP error:", err);
       setLocalError(getErrorMessage(err) || "Failed to resend verification code. Please try again.");
@@ -136,7 +142,11 @@ export default function AuthPage({ onAuthSuccess }) {
         otp,
         new_password: newPassword
       });
-      alert("Password has been reset successfully! Please sign in with your new password.");
+      notify({
+        type: "success",
+        title: "Password reset",
+        message: "Your password has been reset. Sign in with your new password.",
+      });
       setMode("signIn");
       setPassword("");
       setNewPassword("");

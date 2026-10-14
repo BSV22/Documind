@@ -189,25 +189,27 @@ def delete_document(doc_id: str, current_user: dict = Depends(get_current_user))
         try:
             with get_db_connection() as conn:
                 with conn.cursor(cursor_factory=psycopg2.extras.DictCursor) as cursor:
-                    # Verify user owns this document
-                    cursor.execute("SELECT id, filename FROM documents WHERE id = %s AND user_id = %s", (doc_id, current_user["id"]))
+                    # Verify ownership and remove chunks + metadata atomically.
+                    cursor.execute(
+                        "SELECT filename FROM documents WHERE id = %s AND user_id = %s FOR UPDATE",
+                        (doc_id, current_user["id"]),
+                    )
                     doc = cursor.fetchone()
-                    
-                    if not doc:
-                        raise ResourceNotFoundError("Document", doc_id)
+                    if doc:
+                        cursor.execute("DELETE FROM document_chunks WHERE doc_id = %s", (doc_id,))
+                        cursor.execute(
+                            "DELETE FROM documents WHERE id = %s AND user_id = %s",
+                            (doc_id, current_user["id"]),
+                        )
+                conn.commit()
         except psycopg2.Error as e:
-            log_error(e, "delete_document verify ownership")
+            log_error(e, "delete_document database cleanup")
             raise handle_database_error(e)
-        
-        # Remove from vector store
-        try:
-            store.delete_document(doc_id)
-            logger.info(f"Document removed from vector store: {doc_id}")
-        except Exception as e:
-            logger.warning(f"Failed to remove document from vector store: {e}")
-            # Don't fail the entire delete operation if vector store removal fails
-        
-        # Remove uploaded file
+
+        if not doc:
+            raise ResourceNotFoundError("Document", doc_id)
+
+        # Remove the physical upload only after the database transaction succeeds.
         upload_dir = "/tmp" if os.environ.get("VERCEL") else "data/documents"
         extension = os.path.splitext(doc["filename"])[1].lower()
         if extension not in {".pdf", ".md"}:
@@ -219,19 +221,9 @@ def delete_document(doc_id: str, current_user: dict = Depends(get_current_user))
                 logger.info(f"Deleted file: {file_path}")
             except OSError as e:
                 log_error(e, "delete_document file removal")
-                logger.warning(f"Failed to delete file: {file_path}")
-                # Don't fail the entire delete operation if file deletion fails
-        
-        # Delete from database
-        try:
-            with get_db_connection() as conn:
-                with conn.cursor() as cursor:
-                    cursor.execute("DELETE FROM documents WHERE id = %s", (doc_id,))
-                conn.commit()
-            logger.info(f"Document deleted from database: {doc_id}")
-        except psycopg2.Error as e:
-            log_error(e, "delete_document database deletion")
-            raise handle_database_error(e)
+                logger.warning(f"Document was deleted but upload cleanup failed: {file_path}")
+
+        logger.info(f"Document and indexed chunks deleted: {doc_id}")
         
         return {"status": "success"}
     

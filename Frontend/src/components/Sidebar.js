@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useContext, useCallback } from "react";
 import { AuthContext } from "../context/AuthContext";
+import { useToast } from "../context/ToastContext";
 import { apiGet, apiPost, apiDelete } from "../utils/api";
 
 const sidebarItems = [
@@ -20,12 +21,14 @@ export default function Sidebar({
   onResetSettings,
 }) {
   const auth = useContext(AuthContext);
+  const { notify } = useToast();
   const [activePanel, setActivePanel] = useState("history");
   const [chats, setChats] = useState([]);
   const [documents, setDocuments] = useState([]);
   const [loadingChats, setLoadingChats] = useState(false);
   const [loadingDocs, setLoadingDocs] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [deletingDocumentId, setDeletingDocumentId] = useState(null);
   const [uploadError, setUploadError] = useState("");
   const [settingsNotice, setSettingsNotice] = useState("");
 
@@ -150,7 +153,11 @@ export default function Sidebar({
 
       const newDoc = await response.json();
       setDocuments(prev => [newDoc, ...prev]);
-      alert("Document indexed successfully!");
+      notify({
+        type: "success",
+        title: "Document indexed",
+        message: `${newDoc.filename} is ready to use in chat.`,
+      });
     } catch (err) {
       console.error("Upload failed:", err);
       setUploadError(err.message || "Failed to index PDF.");
@@ -161,12 +168,17 @@ export default function Sidebar({
   };
 
   const handleDeleteDocument = async (docId) => {
-    if (!window.confirm("Are you sure you want to delete this document? All associated context will be un-indexed.")) return;
+    if (settings?.confirmDelete !== false && !window.confirm("Are you sure you want to delete this document? All associated context will be un-indexed.")) return;
+    setDeletingDocumentId(docId);
     try {
       await apiDelete(`/api/documents/${docId}`);
       setDocuments(prev => prev.filter(d => d.id !== docId));
+      notify({ type: "success", title: "Document removed", message: "The document and its indexed context were deleted." });
     } catch (err) {
       console.error("Failed to delete document:", err);
+      notify({ type: "error", title: "Could not remove document", message: err.message || "Please try again." });
+    } finally {
+      setDeletingDocumentId(null);
     }
   };
 
@@ -310,10 +322,12 @@ export default function Sidebar({
                       </div>
                       <button
                         onClick={() => handleDeleteDocument(doc.id)}
-                        className="rounded-lg p-1.5 text-slate-500 transition hover:bg-red-500/10 hover:text-red-400 cursor-pointer"
+                        disabled={deletingDocumentId === doc.id}
+                        className="rounded-lg p-1.5 text-slate-500 transition hover:bg-red-500/10 hover:text-red-400 disabled:cursor-wait disabled:opacity-50 cursor-pointer"
                         title="Remove document"
+                        aria-label={`Remove ${doc.filename}`}
                       >
-                        ❌
+                        {deletingDocumentId === doc.id ? "…" : "❌"}
                       </button>
                     </div>
                   ))}

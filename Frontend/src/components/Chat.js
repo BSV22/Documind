@@ -356,7 +356,14 @@ export default function Chat({ activeChatId, settings }) {
                                 }`}
                             >
                                 {!m.text ? (
-                                    <span className="text-xs italic text-slate-400">Streaming...</span>
+                                    <span role="status" aria-live="polite" className="chat-thinking">
+                                        <span>Finding context and drafting a response</span>
+                                        <span className="chat-thinking-dots" aria-hidden="true">
+                                            <span />
+                                            <span />
+                                            <span />
+                                        </span>
+                                    </span>
                                 ) : m.from === "bot" && settings?.markdownFormatting !== false && !m.text.startsWith("⚠️") ? (
                                     <div className="chat-markdown">
                                         <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
@@ -382,17 +389,6 @@ export default function Chat({ activeChatId, settings }) {
                             </div>
                         </div>
                     ))
-                )}
-
-                {loading && (
-                    <div className="flex justify-start">
-                        <div className="flex max-w-[75%] items-center gap-2 rounded-xl rounded-bl-md border border-[#30363d] bg-[#161b22] px-4 py-3 text-sm text-[#e6edf3]">
-                            <span className="text-xs uppercase tracking-[0.1em] text-[#58a6ff]">Thinking</span>
-                            <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-[#58a6ff]" style={{ animationDelay: '0ms' }}></span>
-                            <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-[#58a6ff]" style={{ animationDelay: '150ms' }}></span>
-                            <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-[#58a6ff]" style={{ animationDelay: '300ms' }}></span>
-                        </div>
-                    </div>
                 )}
 
                 <div ref={messagesEndRef} />
