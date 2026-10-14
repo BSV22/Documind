@@ -2,6 +2,7 @@ import os
 import uuid
 import shutil
 import json
+import hashlib
 from pathlib import PurePath
 import psycopg2
 import psycopg2.extras
@@ -26,6 +27,7 @@ from rag.vector_store import VectorStore
 from rag.retriever import Retriever
 from rag.prompt import PromptBuilder
 from rag.llm import LLM
+from rag.response_cache import response_cache
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api", tags=["documents"])
@@ -253,10 +255,17 @@ def detect_intent(message: str) -> str:
     # Factual, informational, and ambiguous messages must be grounded in documents.
     return "DOCUMENT_INQUIRY"
 
-async def event_generator(chat_id: str, message: str, user_id: int):
+async def event_generator(
+    chat_id: str,
+    message: str,
+    user_id: int,
+    show_retrieved_chunks: bool = False,
+):
     """Stream chat responses with error handling."""
     try:
         intent = detect_intent(message)
+        response_cache_key = None
+        accumulated_response = None
 
         if intent in {"GREETING", "SMALL_TALK"}:
             direct_response = "How may I help you?"
@@ -269,39 +278,96 @@ async def event_generator(chat_id: str, message: str, user_id: int):
             contexts = None
             
         if intent == "DOCUMENT_INQUIRY":
-            # Retrieve top-5 contexts using hybrid semantic and keyword search.
+            # Tie cache entries to the current searchable corpus, so uploads and
+            # deletions automatically produce different keys.
             try:
-                contexts = retriever.retrieve(message, user_id=user_id, top_k=5)
-                logger.info(f"Retrieved {len(contexts)} contexts for document inquiry")
-                if contexts:
-                    prompt = PromptBuilder().build(message, contexts)
-                else:
-                    direct_response = "How may I help you?"
-            except Exception as e:
-                log_error(e, "event_generator retrieval")
-                yield f"data: {json.dumps({'error': 'Failed to retrieve document context. ' + str(e)})}\n\n"
-                return
+                with get_db_connection() as conn:
+                    with conn.cursor() as cursor:
+                        cursor.execute(
+                            """
+                            SELECT documents.id, COUNT(document_chunks.id)
+                            FROM documents
+                            LEFT JOIN document_chunks ON document_chunks.doc_id = documents.id
+                            WHERE documents.user_id = %s OR documents.user_id IS NULL
+                            GROUP BY documents.id
+                            ORDER BY documents.id
+                            """,
+                            (user_id,),
+                        )
+                        corpus_fingerprint = [f"{row[0]}:{row[1]}" for row in cursor.fetchall()]
 
-        if prompt is None and direct_response is None:
+                normalized_question = " ".join(message.casefold().split())
+                cache_material = json.dumps([
+                    "rag-response-v1",
+                    os.getenv("GEMINI_MODEL", "gemini-2.5-flash"),
+                    str(user_id),
+                    corpus_fingerprint,
+                    normalized_question,
+                ], ensure_ascii=False, separators=(",", ":"))
+                response_cache_key = hashlib.sha256(cache_material.encode("utf-8")).hexdigest()
+            except Exception as cache_key_error:
+                # Cache lookup is optional; database/retrieval remains the source of truth.
+                logger.warning("Could not build RAG response cache key: %s", cache_key_error)
+
+            cached_response = response_cache.get(response_cache_key) if response_cache_key else None
+            if cached_response is not None:
+                logger.info("RAG response cache hit for user %s", user_id)
+                accumulated_response = cached_response["text"]
+                if show_retrieved_chunks and cached_response.get("sources"):
+                    yield f"data: {json.dumps({'sources': cached_response['sources']})}\n\n"
+                yield f"data: {json.dumps({'text': accumulated_response})}\n\n"
+            else:
+                accumulated_response = None
+
+            # Retrieve top-5 contexts using hybrid semantic and keyword search.
+            if cached_response is None:
+                try:
+                    contexts = retriever.retrieve(message, user_id=user_id, top_k=5)
+                    logger.info(f"Retrieved {len(contexts)} contexts for document inquiry")
+                    if contexts:
+                        if show_retrieved_chunks:
+                            sources = [
+                                {"rank": index, "text": text}
+                                for index, (_, text) in enumerate(contexts, start=1)
+                            ]
+                            yield f"data: {json.dumps({'sources': sources})}\n\n"
+                        prompt = PromptBuilder().build(message, contexts)
+                    else:
+                        direct_response = "How may I help you?"
+                except Exception as e:
+                    log_error(e, "event_generator retrieval")
+                    yield f"data: {json.dumps({'error': 'Failed to retrieve document context. ' + str(e)})}\n\n"
+                    return
+
+        if prompt is None and direct_response is None and accumulated_response is None:
             logger.error(f"Unable to build prompt for intent {intent}")
             yield f"data: {json.dumps({'error': 'Unable to process the request'})}\n\n"
             return
 
-        accumulated_response = ""
-        try:
-            if direct_response is not None:
-                accumulated_response = direct_response
-                yield f"data: {json.dumps({'text': direct_response})}\n\n"
-            else:
-                llm = LLM()
-                for chunk in llm.generate_stream(prompt):
-                    accumulated_response += chunk
-                    yield f"data: {json.dumps({'text': chunk})}\n\n"
-        except Exception as e:
-            log_error(e, "event_generator llm streaming")
-            logger.error(f"LLM stream generation failed: {e}")
-            yield f"data: {json.dumps({'error': f'LLM error: {str(e)}' })}\n\n"
-            return
+        if accumulated_response is None:
+            accumulated_response = ""
+            try:
+                if direct_response is not None:
+                    accumulated_response = direct_response
+                    yield f"data: {json.dumps({'text': direct_response})}\n\n"
+                else:
+                    llm = LLM()
+                    for chunk in llm.generate_stream(prompt):
+                        accumulated_response += chunk
+                        yield f"data: {json.dumps({'text': chunk})}\n\n"
+                    if intent == "DOCUMENT_INQUIRY" and response_cache_key:
+                        response_cache.set(response_cache_key, {
+                            "text": accumulated_response,
+                            "sources": [
+                                {"rank": index, "text": text}
+                                for index, (_, text) in enumerate(contexts or [], start=1)
+                            ],
+                        })
+            except Exception as e:
+                log_error(e, "event_generator llm streaming")
+                logger.error(f"LLM stream generation failed: {e}")
+                yield f"data: {json.dumps({'error': f'LLM error: {str(e)}' })}\n\n"
+                return
 
         # Save messages to DB on completion
         user_msg_id = str(uuid.uuid4())
@@ -356,7 +422,12 @@ def chat_query(req: ChatRequest, current_user: dict = Depends(get_current_user))
         
         logger.info(f"Starting chat query for chat {req.chat_id}, user {current_user['id']}")
         return StreamingResponse(
-            event_generator(req.chat_id, req.message, current_user["id"]),
+            event_generator(
+                req.chat_id,
+                req.message,
+                current_user["id"],
+                req.show_retrieved_chunks,
+            ),
             media_type="text/event-stream"
         )
     

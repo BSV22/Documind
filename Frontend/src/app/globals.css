@@ -165,6 +165,55 @@ textarea {
   border-right: 0;
 }
 
+.chat-sources {
+  margin-top: 0.9rem;
+  border-top: 1px solid #30363d;
+  padding-top: 0.65rem;
+}
+
+.chat-sources summary {
+  width: fit-content;
+  cursor: pointer;
+  color: #8b949e;
+  font-size: 0.75rem;
+  font-weight: 600;
+  user-select: none;
+}
+
+.chat-sources summary:hover {
+  color: #58a6ff;
+}
+
+.chat-sources-list {
+  display: grid;
+  gap: 0.6rem;
+  margin-top: 0.65rem;
+}
+
+.chat-source {
+  overflow: hidden;
+  border: 1px solid #30363d;
+  border-radius: 0.6rem;
+  background: #0d1117;
+  padding: 0.65rem 0.75rem;
+}
+
+.chat-source h4 {
+  margin: 0 0 0.35rem;
+  color: #58a6ff;
+  font-size: 0.7rem;
+  font-weight: 700;
+}
+
+.chat-source p {
+  margin: 0;
+  color: #c9d1d9;
+  font-size: 0.75rem;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
 ::-webkit-scrollbar {
   width: 10px;
   height: 10px;

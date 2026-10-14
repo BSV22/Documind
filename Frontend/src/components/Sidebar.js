@@ -375,6 +375,7 @@ export default function Sidebar({
               {[
                 { key: "autoScroll", label: "Auto-scroll", description: "Keep the newest message in view." },
                 { key: "markdownFormatting", label: "Format responses", description: "Render headings, lists, and tables." },
+                { key: "showRetrievedChunks", label: "Show retrieved chunks", description: "Inspect document excerpts used to answer." },
                 { key: "desktopNotifications", label: "Desktop notifications", description: "Notify when a reply finishes in the background." },
                 { key: "confirmDelete", label: "Confirm before deleting", description: "Ask before removing a chat." },
               ].map((option) => {

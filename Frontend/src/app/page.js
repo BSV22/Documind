@@ -11,6 +11,7 @@ import { useAuth } from '../context/AuthContext';
 const DEFAULT_SETTINGS = {
   autoScroll: true,
   markdownFormatting: true,
+  showRetrievedChunks: false,
   desktopNotifications: false,
   confirmDelete: true,
 };

@@ -120,6 +120,7 @@ export default function Chat({ activeChatId, settings }) {
                 body: JSON.stringify({
                     chat_id: activeChatId,
                     message: userMsgText,
+                    show_retrieved_chunks: Boolean(settings?.showRetrievedChunks),
                 }),
                 credentials: "same-origin",
                 timeout: 60000,
@@ -136,6 +137,7 @@ export default function Chat({ activeChatId, settings }) {
                     id: botMsgId,
                     from: "bot",
                     text: "",
+                    sources: [],
                 },
             ]);
 
@@ -179,6 +181,14 @@ export default function Chat({ activeChatId, settings }) {
                                         prev.map((msg) =>
                                             msg.id === botMsgId
                                                 ? { ...msg, text: accumulatedText }
+                                                : msg
+                                        )
+                                    );
+                                } else if (Array.isArray(parsed.sources)) {
+                                    setMessages((prev) =>
+                                        prev.map((msg) =>
+                                            msg.id === botMsgId
+                                                ? { ...msg, sources: parsed.sources }
                                                 : msg
                                         )
                                     );
@@ -339,6 +349,19 @@ export default function Chat({ activeChatId, settings }) {
                                     </div>
                                 ) : (
                                     m.text
+                                )}
+                                {m.from === "bot" && m.sources?.length > 0 && (
+                                    <details className="chat-sources">
+                                        <summary>Retrieved context ({m.sources.length} chunks)</summary>
+                                        <div className="chat-sources-list">
+                                            {m.sources.map((source) => (
+                                                <section className="chat-source" key={source.rank}>
+                                                    <h4>Chunk {source.rank}</h4>
+                                                    <p>{source.text}</p>
+                                                </section>
+                                            ))}
+                                        </div>
+                                    </details>
                                 )}
                             </div>
                         </div>

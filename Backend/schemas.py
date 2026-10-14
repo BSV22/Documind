@@ -25,6 +25,7 @@ class CreateChatRequest(BaseModel):
 class ChatRequest(BaseModel):
     chat_id: str
     message: str
+    show_retrieved_chunks: bool = False
 
 class ForgotPasswordRequest(BaseModel):
     email: str
