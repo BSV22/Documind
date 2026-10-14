@@ -297,7 +297,7 @@ export default function AuthPage({ onAuthSuccess }) {
 
                   <div className="mb-6 flex justify-center">
                     {mounted && (
-                      <div className="w-full rounded-xl border border-[#30363d] bg-[#0d1117] p-2.5">
+                      <div className="flex w-full justify-center">
                         <GoogleLogin
                           onSuccess={handleGoogleSuccess}
                           onError={handleGoogleError}
